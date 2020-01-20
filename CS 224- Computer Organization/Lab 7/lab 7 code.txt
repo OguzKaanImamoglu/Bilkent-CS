@@ -1,0 +1,120 @@
+// This code rotates right and left arbitrary
+// Olcay Akman
+// Oguz Kaan Imamoglu
+
+// This code shows and rotates the pattern (10001000) right or stops based on the
+//input coming from the user. The pattern is to be shown on the LEDs.
+int stop = 0;
+int initial = 0b11110111; //Initial pattern. Note that 0 means on, while 1 means off.
+int right = 1;
+int rotate = 1;
+// rotate stands for dir
+// stop stands for en
+
+void main(){
+
+     TRISD = 0x0; // All bits of PORTD are output. ~0 means output~
+     // Three bits of PORTA are inputs but only one of them is used in this example as a
+     //stop button, others are redundant. ~1 means input~
+     TRISA = 0b111;
+     // From PORTD, outputs will be sent to LEDs. Make sure that you physically connected
+     //hem by looking at the Figure 1, in the directives document.
+     // Initial pattern is sent to the LEDs through PORTD.
+     PORTD = initial;
+     while(1){
+              int lsb;   // is used for rotating right
+              int msb;   // is used for rotating left
+              int mask;  // represents the leds that are currently on
+              int tmp;  // it is necessary while we want to continue from where we stop
+              //1 is right
+              // Stop button is the push-button which is labeled as 1 on the board.
+              if(PORTABits.RA1 == 0){ // If stop button clicked
+                               stop = !stop;
+
+                               if(!stop){
+                               // If process restarted, copy initial pattern into PORTD.
+                                  PORTD = tmp;
+                                  }
+                               else
+                                   tmp = PORTD;
+              }
+             
+              if(PORTABits.RA2 == 0 )  { // If rotate button clicked
+                                              if (rotate == 1)
+                                              rotate = 0; else rotate = 1;
+                                         }
+              if(!stop){
+                         if(!rotate){
+                            //rotate left
+                             msb = PORTD & 0x80;  // Extract most significant bit
+                             mask = msb >> 7; // most significant bit will be the lsb of the shifted pattern
+                              PORTD = (PORTD << 1) | mask; // Paste msb to the leftmost bit the left shifted portd
+                         }
+                         
+                         else{
+                        //Rotate right
+                        lsb = PORTD & 0x1; // Extract least significant bit
+                        mask = lsb << 7; // Least significant bit will be the msb of the shifted pattern
+                        PORTD = (PORTD >> 1) | mask; // Paste lsb to the leftmost bit the right shifted portd
+                        }
+                       
+              } else {
+                        //Do not shift anything, that is, stop.
+
+                        PORTD = 0b11111111;
+              }
+              delay_ms(1000); // Wait 1 second.
+     }
+}
+// Rotation ends here
+
+
+unsigned char decoded[10] = {0x3F, 0X06, 0X5B, 0X4F, 0X66, 0X6D, 0X7D, 0X07, 0X7F, 0X6F};
+int aa;
+int cube;
+int i = 1;
+int first;
+int second;
+int third;
+int fourth;
+int counter;
+void main() {
+      TRISD = 0x0;
+      TRISE = 0x0;
+
+      aa = 1;
+      while(1)
+      {
+      cube = i*i*i;
+      i++;
+
+      if ( i> 21)
+      {i = 1;}
+
+      counter = 0;
+      first = cube % 10 ;
+      cube = cube / 10;
+      second = cube % 10;
+      cube = cube / 10;
+      third = cube % 10 ;
+      cube = cube / 10;
+      fourth = cube % 10 ;
+      while(counter < 500){
+      PORTD = decoded[first];
+      PORTE = 0b00001000 ;
+      delay_ms(1) ;
+      PORTD = decoded[second];
+      PORTE = 0b00000100 ;
+      delay_ms(1) ;
+      PORTD = decoded[third];
+      PORTE = 0b00000010 ;
+      delay_ms(1) ;
+      PORTD = decoded[fourth];
+      PORTE = 0b00000001 ;
+      delay_ms(1);
+      counter++;
+      }
+
+      }
+     
+}
