@@ -1,0 +1,477 @@
+`timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 12.05.2019 22:03:20
+// Design Name: 
+// Module Name: topmodule
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
+
+`timescale 1ns / 1ps
+
+module topmodule(
+input add,remainder,multiplication,divide,reset,
+input clk,
+input logic signed[7:0] in1 , in2,
+
+output logic [7:0] seg, 
+output logic [3:0] an,
+
+output logic signed [7:0] oki1, oki2
+    );
+    logic enable;
+    logic sig;
+    logic undefined;
+    logic [15:0] out;
+    calculator c1(add,remainder,multiplication,divide,reset,clk,in1,in2,out,enable,sig,undefined,oki1, oki2);
+    logic [3:0] a1, a2, a3,a4;
+    
+    
+    always@( out ) 
+    begin
+
+    a1 <= out % 16;
+    a2 <= (out/16) % 16;
+    a3 <= (out/256) % 16;
+    a4 <= out/4096 % 16;
+    end
+    
+    
+    sevensegment display(undefined, sig,enable,clk,a1,a2,a3,a4,seg,an);
+
+endmodule
+
+
+/////////////////////////////////////////////////////////
+
+
+
+`timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 12.05.2019 22:04:35
+// Design Name: 
+// Module Name: calculator
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
+
+
+`timescale 1 ps / 1 ps
+
+module calculator(
+ input add,remainder,multiplication,divide,reset,
+ input clk,
+ input logic signed [7:0] in1,in2,
+ output logic signed[15:0] out,
+ output logic enable = 1,
+ output logic signbit,
+ output logic undefined,
+ output logic signed [7:0] oki1, oki2
+ );
+ 
+ logic[31:0] clkdiv;
+ initial clkdiv = 0;
+ logic [7:0] i1, i2;
+//initial oki[7:0] = in1;
+//initial oki[15:8] = in2;
+ logic [2:0] state, nextstate;
+ 
+ localparam S0 = 3'b000,
+            S1 = 3'b001,
+            S2 = 3'b010,
+            S3 = 3'b011,
+            S4 = 3'b100,
+            S5 = 3'b101,
+            S6 = 3'b110;
+            
+always@(posedge clk)
+begin
+
+clkdiv <= clkdiv+1;
+
+case(state)
+   S0: begin    
+        oki1[7:0] = in1;
+        oki2[7:0] = in2;            
+        if(clkdiv >= 50_000_000)
+        begin
+        clkdiv <= 0;
+        out = 16'b0;
+        if(enable == 1)
+        enable = 0;
+        else
+        enable = 1;
+        end
+        if (multiplication == 1) nextstate = S1;
+        else if (add == 1) nextstate = S2;
+        else if (divide == 1) nextstate = S3;
+        else if (remainder == 1) nextstate = S4;
+      
+       end
+   
+   S1: begin
+        out = oki1 * oki2;
+        signbit = out[15];
+        if(out[15] == 1)
+        out = ~out + 1'b1;
+        nextstate = S5;
+       end
+       
+   S2: begin
+        out = oki1 +oki2;
+        signbit = out[15];
+        if(out[15] == 1)
+        out = ~out + 1'b1;
+        nextstate = S5;
+       end
+       
+   S3: begin
+        out = oki1 / oki2;
+        signbit = out[15];
+        if(out[15] == 1)
+        out = ~out + 1'b1;
+        if (in2 == 0) undefined = 1;
+        nextstate = S5;
+       end
+    
+   S4: begin
+        out = oki1 % oki2;
+        signbit = out[15];
+        if(out[15] == 1)
+        out = ~out + 1'b1; 
+        nextstate = S5;
+       end
+
+
+    S5:begin
+        if(clkdiv >= 50_000_000)
+        begin
+        clkdiv <= 0;
+        if(enable == 1)
+        enable = 0;
+        else
+        enable = 1;
+        end
+        if (multiplication == 1) nextstate = S1;
+        else if (add == 1) nextstate = S2;
+        else if (divide == 1) nextstate = S3;
+        else if (remainder == 1) nextstate = S4;
+    
+       end
+  
+      
+       
+     S6:begin
+        out = 16'b0;
+        oki1[7:0] = in1;
+        oki2[7:0] = in2;
+        i1 = 16'b0;
+        i2 = 16'b0;
+        signbit = 0;
+        undefined = 0;
+        nextstate = S0;
+       end
+    
+    endcase
+   
+    
+     if(reset == 1) 
+        state <= S6;
+     else
+        state <= nextstate;       
+     end
+    
+
+endmodule
+
+
+
+
+`timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 12.05.2019 22:02:05
+// Design Name: 
+// Module Name: sevensegment
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
+
+
+module sevensegment(
+input undefined,
+input sig,
+ input enable,
+ input clk,
+ input signed[4:0] in0, in1, in2, in3, //user inputs for each digit (hexadecimal value)
+ output [7:0]seg, // just connect them to FPGA pins (individual LEDs).
+ output [4:0] an   // just connect them to FPGA pins (enable vector for 4 digits active low)
+ );
+ 
+// divide system clock (100Mhz for Basys3) by 2^N usignbitg a counter, which allows us to multiplex at lower speed
+localparam N = 18;
+logic [N-1:0] count = {N{1'b0}}; //initial value
+always@ (posedge clk)
+	count <= count + 1;
+
+ 
+logic [4:0]digit_val; // 7-bit register to hold the current data on output
+logic [4:0]digit_en;  //register for the 4 bit enable
+
+always@ (*)
+ begin
+
+ if(enable == 1)
+ begin
+// if(enable == 1)
+ digit_en = 4'b1111; 
+ digit_val = 16;
+// if(undefined == 1)
+// digit_val = 17;
+ end
+ else
+ begin
+ 
+  case(count[N-1:N-2]) //usignbitg only the 2 MSB's of the counter 
+    
+   2'b00 :  //select first 7Seg.
+    begin
+    digit_en = 4'b1110;
+    if(undefined)
+    digit_val = 17;
+    else    
+    digit_val = in0;
+     
+    end
+    
+   2'b01:  //select second 7Seg.
+    begin
+    digit_en = 4'b1101;
+    if(undefined)
+    digit_val = 18;
+    else    
+    digit_val = in1;
+     
+    end
+    
+   2'b10:  //select third 7Seg.
+    begin
+    digit_en = 4'b1011;
+    
+    if(undefined)
+    digit_val = 18;
+    
+    else
+    digit_val = in2;
+    
+     
+     
+    end
+     
+   2'b11:  //select forth 7Seg.
+    begin
+    
+    digit_en = 4'b0111;
+    
+    if(undefined)    
+    digit_val = 18;
+    
+    else if(sig)
+    digit_val = 16;
+    
+    else
+    digit_val = in3;
+    end
+  endcase
+ end
+ end
+
+
+//Convert digit number to LED vector. LEDs are active low.
+logic [6:0] sseg_LEDs; 
+always @(*)
+ begin 
+  sseg_LEDs = 7'b1111111; //default
+  case(digit_val)
+   5'd0 : sseg_LEDs = 7'b1000000; //to display 0
+   5'd1 : sseg_LEDs = 7'b1111001; //to display 1
+   5'd2 : sseg_LEDs = 7'b0100100; //to display 2
+   5'd3 : sseg_LEDs = 7'b0110000; //to display 3
+   5'd4 : sseg_LEDs = 7'b0011001; //to display 4
+   5'd5 : sseg_LEDs = 7'b0010010; //to display 5
+   5'd6 : sseg_LEDs = 7'b0000010; //to display 6
+   5'd7 : sseg_LEDs = 7'b1111000; //to display 7
+   5'd8 : sseg_LEDs = 7'b0000000; //to display 8
+   5'd9 : sseg_LEDs = 7'b0010000; //to display 9
+   5'd10: sseg_LEDs = 7'b0001000; //to display a
+   5'd11: sseg_LEDs = 7'b0000011; //to display b
+   5'd12: sseg_LEDs = 7'b1000110; //to display c
+   5'd13: sseg_LEDs = 7'b0100001; //to display d
+   5'd14: sseg_LEDs = 7'b0000110; //to display e
+   5'd15: sseg_LEDs = 7'b0001110; //to display f   
+   5'd16: sseg_LEDs = 7'b0111111; //to display 
+   5'd17: sseg_LEDs = 7'b1000001; //to display  
+   5'd18: sseg_LEDs = 7'b1110111; //to display    
+   default : sseg_LEDs = 7'b1111111; //empty
+  endcase
+ end
+ 
+assign an = digit_en;
+assign seg = sseg_LEDs; 
+assign seg[7] = 1'b1; //turn dp off
+ 
+ 
+endmodule
+
+
+set_property PACKAGE_PIN U18 [get_ports reset]  	 	 	 	 	 
+ 	set_property IOSTANDARD LVCMOS33 [get_ports reset] 
+set_property PACKAGE_PIN T18 [get_ports multiplication]						
+	set_property IOSTANDARD LVCMOS33 [get_ports multiplication]
+set_property PACKAGE_PIN W19 [get_ports add]						
+	set_property IOSTANDARD LVCMOS33 [get_ports add]
+set_property PACKAGE_PIN T17 [get_ports divide]						
+	set_property IOSTANDARD LVCMOS33 [get_ports divide]
+set_property PACKAGE_PIN U17 [get_ports remainder]						
+	set_property IOSTANDARD LVCMOS33 [get_ports remainder]
+	
+	set_property PACKAGE_PIN W5 [get_ports clk]							
+	set_property IOSTANDARD LVCMOS33 [get_ports clk]
+	create_clock -add -name sys_clk_pin -period 10.00 -waveform {0 5} [get_ports clk]
+	
+	set_property PACKAGE_PIN V17 [get_ports {in1[0]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {in1[0]}]
+set_property PACKAGE_PIN V16 [get_ports {in1[1]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {in1[1]}]
+set_property PACKAGE_PIN W16 [get_ports {in1[2]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {in1[2]}]
+set_property PACKAGE_PIN W17 [get_ports {in1[3]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {in1[3]}]
+set_property PACKAGE_PIN W15 [get_ports {in1[4]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {in1[4]}]
+set_property PACKAGE_PIN V15 [get_ports {in1[5]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {in1[5]}]
+set_property PACKAGE_PIN W14 [get_ports {in1[6]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {in1[6]}]
+set_property PACKAGE_PIN W13 [get_ports {in1[7]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {in1[7]}]
+set_property PACKAGE_PIN V2 [get_ports {in2[0]}]					
+    set_property IOSTANDARD LVCMOS33 [get_ports {in2[0]}]
+set_property PACKAGE_PIN T3 [get_ports {in2[1]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {in2[1]}]
+set_property PACKAGE_PIN T2 [get_ports {in2[2]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {in2[2]}]
+set_property PACKAGE_PIN R3 [get_ports {in2[3]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {in2[3]}]
+set_property PACKAGE_PIN W2 [get_ports {in2[4]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {in2[4]}]
+set_property PACKAGE_PIN U1 [get_ports {in2[5]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {in2[5]}]
+set_property PACKAGE_PIN T1 [get_ports {in2[6]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {in2[6]}]
+set_property PACKAGE_PIN R2 [get_ports {in2[7]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {in2[7]}]
+	
+	
+#	set_property PACKAGE_PIN U16 [get_ports {enable}]					
+#	set_property IOSTANDARD LVCMOS33 [get_ports {enable}]
+	
+#	set_property PACKAGE_PIN L1 [get_ports {sig}]					
+#	set_property IOSTANDARD LVCMOS33 [get_ports {sig}]
+	
+	
+	set_property PACKAGE_PIN W7 [get_ports {seg[0]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {seg[0]}]
+set_property PACKAGE_PIN W6 [get_ports {seg[1]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {seg[1]}]
+set_property PACKAGE_PIN U8 [get_ports {seg[2]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {seg[2]}]
+set_property PACKAGE_PIN V8 [get_ports {seg[3]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {seg[3]}]
+set_property PACKAGE_PIN U5 [get_ports {seg[4]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {seg[4]}]
+set_property PACKAGE_PIN V5 [get_ports {seg[5]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {seg[5]}]
+set_property PACKAGE_PIN U7 [get_ports {seg[6]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {seg[6]}]
+
+set_property PACKAGE_PIN V7 [get_ports seg[7]]							
+	set_property IOSTANDARD LVCMOS33 [get_ports seg[7]]
+
+set_property PACKAGE_PIN U2 [get_ports {an[0]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {an[0]}]
+set_property PACKAGE_PIN U4 [get_ports {an[1]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {an[1]}]
+set_property PACKAGE_PIN V4 [get_ports {an[2]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {an[2]}]
+set_property PACKAGE_PIN W4 [get_ports {an[3]}]					
+	set_property IOSTANDARD LVCMOS33 [get_ports {an[3]}]
+
+
+set_property PACKAGE_PIN U16 [get_ports {oki1[0]}]  	 	 	 	 
+ 	set_property IOSTANDARD LVCMOS33 [get_ports {oki1[0]}] 
+set_property PACKAGE_PIN E19 [get_ports {oki1[1]}]  	 	 	 	 
+ 	set_property IOSTANDARD LVCMOS33 [get_ports {oki1[1]}] 
+set_property PACKAGE_PIN U19 [get_ports {oki1[2]}]  	 	 	 	 
+ 	set_property IOSTANDARD LVCMOS33 [get_ports {oki1[2]}] 
+set_property PACKAGE_PIN V19 [get_ports {oki1[3]}]  	 	 	 	 
+ 	set_property IOSTANDARD LVCMOS33 [get_ports {oki1[3]}] 
+set_property PACKAGE_PIN W18 [get_ports {oki1[4]}]  	 	 	 	 
+ 	set_property IOSTANDARD LVCMOS33 [get_ports {oki1[4]}] 
+set_property PACKAGE_PIN U15 [get_ports {oki1[5]}]  	 	 	 	 
+ 	set_property IOSTANDARD LVCMOS33 [get_ports {oki1[5]}] 
+set_property PACKAGE_PIN U14 [get_ports {oki1[6]}]  	 	 	 	 
+ 	set_property IOSTANDARD LVCMOS33 [get_ports {oki1[6]}] 
+set_property PACKAGE_PIN V14 [get_ports {oki1[7]}]  	 	 	 	 
+ 	set_property IOSTANDARD LVCMOS33 [get_ports {oki1[7]}] 
+set_property PACKAGE_PIN V13 [get_ports {oki2[0]}]  	 	 	 	 
+ 	set_property IOSTANDARD LVCMOS33 [get_ports {oki2[0]}] 
+set_property PACKAGE_PIN V3 [get_ports {oki2[1]}] 	 	 	 	 	 
+ 	set_property IOSTANDARD LVCMOS33 [get_ports {oki2[1]}] 
+set_property PACKAGE_PIN W3 [get_ports {oki2[2]}]  	 	 	 	 
+ 	set_property IOSTANDARD LVCMOS33 [get_ports {oki2[2]}] 
+set_property PACKAGE_PIN U3 [get_ports {oki2[3]}]  	 	 	 	 
+ 	set_property IOSTANDARD LVCMOS33 [get_ports {oki2[3]}] 
+set_property PACKAGE_PIN P3 [get_ports {oki2[4]}]  	 	 	 	 
+ 	set_property IOSTANDARD LVCMOS33 [get_ports {oki2[4]}] 
+set_property PACKAGE_PIN N3 [get_ports {oki2[5]}]  	 	 	 	 
+ 	set_property IOSTANDARD LVCMOS33 [get_ports {oki2[5]}] 
+set_property PACKAGE_PIN P1 [get_ports {oki2[6]}]  	 	 	 	 
+ 	set_property IOSTANDARD LVCMOS33 [get_ports {oki2[6]}] 
+set_property PACKAGE_PIN L1 [get_ports {oki2[7]}]  	 	 	 	  			
+	set_property IOSTANDARD LVCMOS33 [get_ports {oki2[7]}] 
