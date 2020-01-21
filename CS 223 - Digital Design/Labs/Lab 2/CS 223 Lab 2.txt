@@ -1,0 +1,165 @@
+// sources
+
+module oneBitFullAdderStructural(
+    input a, b, cin,
+    output s, cout
+    );
+    wire x1, x2, x3;
+    xor u1(x1,a,b);
+    and u2(x2,a,b);
+    and u3(x3,x1,cin);
+    or u4(cout,x2,x3);
+    xor u5(s,cin,x1);
+endmodule
+ 
+
+module oneBitFullAdder(
+    input a, b, cin,
+    output  s, cout
+    );
+    
+    assign s = a ^ b ^ cin;
+    assign cout = (a & b) | (a ^ b ) & cin ;
+    
+endmodule
+
+module twoBitFullAdder(
+    input[1:0] a, b,
+    input cin,
+    output[1:0] s,
+    output cout
+    );
+    
+    wire c0;
+    oneBitFullAdder a0(a[0], b[0], cin, s[0], c0);
+    oneBitFullAdder a1(a[1], b[1], c0, s[1], cout);
+    
+endmodule
+
+
+// testbench for 2 bit adder
+
+module testbench();
+    logic[1:0] a, b, s;
+    logic cin, cout;
+    
+    twoBitFullAdder a1(a, b, cin, s, cout);
+    
+    initial begin
+        for (int i = 0 ; i < 32 ; i++) begin
+            a = i[1:0];
+            b = i[3:2];
+            cin = i[4];
+            #10;
+        end
+    end
+    
+endmodule
+
+
+// testbench for 1 bit structural
+
+
+module testbench_simForOneBitStructural();
+    logic a, b, cin, s, cout ;
+    oneBitFullAdderStructural tb(a, b, cin, s, cout);
+    
+    initial begin
+        a = 0;
+        b = 0;
+        cin = 0;
+        #10;
+        
+        a = 0;
+        b = 0;
+        cin = 1;
+        #10;
+        
+        a = 0;
+        b = 1;
+        cin = 0;
+        #10;  
+        
+        a = 0;
+        b = 1;
+        cin = 1;
+        #10;
+        
+        a = 1;
+        b = 0;
+        cin = 0;
+        #10;
+        
+        a = 1;
+        b = 0;
+        cin = 1;
+        #10;
+        
+        a = 1;
+        b = 1;
+        cin = 0;
+        #10;  
+        
+        a = 1;
+        b = 1;
+        cin = 1;
+        #10;
+        
+    end
+
+
+
+// testbench for 1 bit dataflow
+
+
+module testbench_simForOneitDataflow();
+    logic a, b, cin, s, cout;
+    oneBitFullAdder tb(a, b, cin, s, cout);
+    
+    initial begin
+        a = 0;
+        b = 0;
+        cin = 0;
+        #10;
+        
+        a = 0;
+        b = 0;
+        cin = 1;
+        #10;
+        
+        a = 0;
+        b = 1;
+        cin = 0;
+        #10;  
+        
+        a = 0;
+        b = 1;
+        cin = 1;
+        #10;
+        
+        a = 1;
+        b = 0;
+        cin = 0;
+        #10;
+        
+        a = 1;
+        b = 0;
+        cin = 1;
+        #10;
+        
+        a = 1;
+        b = 1;
+        cin = 0;
+        #10;  
+        
+        a = 1;
+        b = 1;
+        cin = 1;
+        #10;
+    
+    end
+    
+endmodule
+
+
+
