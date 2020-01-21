@@ -1,0 +1,21 @@
+# depslib dependency file v1.0
+1557174436 source:c:\users\asus\desktop\homework 3\part a\homework3parta\list.cpp
+	"List.h"
+	<cstddef>
+
+1557174689 c:\users\asus\desktop\homework 3\part a\homework3parta\list.h
+	"Book.h"
+
+1557174796 c:\users\asus\desktop\homework 3\part a\homework3parta\book.h
+	<string>
+
+1557174867 source:c:\users\asus\desktop\homework 3\part a\homework3parta\book.cpp
+	"Book.h"
+
+1557174423 source:c:\users\asus\desktop\homework 3\part a\homework3parta\main.cpp
+	"LibrarySystem.h"
+	<iostream>
+
+1557174885 c:\users\asus\desktop\homework 3\part a\homework3parta\librarysystem.h
+	<string>
+
